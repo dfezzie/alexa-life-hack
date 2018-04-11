@@ -8,3 +8,4 @@ pylint = "*"
 [packages]
 Flask-Ask = "*"
 cryptography = "<2.2"
+Flask-SQLAlchemy = "*"
