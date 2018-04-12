@@ -1,0 +1,8 @@
+GetDinner what did i have {request_date}
+GetDinner What is dinner on {request_date}
+GetDinner dinner {request_date} is
+GetDinner Dinner tonight is
+GetDinner What is for dinner
+GetDinner What am I having tonight
+GetDinner What am I having for dinner {request_date}
+GetDinner What am I having for dinner

@@ -11,8 +11,8 @@ from .models import User, Dinner
 blueprint = Blueprint('blueprint_api', __name__, url_prefix="/")
 ask = Ask(blueprint=blueprint)
 
-log = logging.getLogger('flas_ask')
-log.setLevel(logging.INFO)
+log = logging.getLogger('flask_ask')
+log.setLevel(logging.DEBUG)
 
 
 def get_current_user_id():
@@ -59,7 +59,7 @@ def check_dinner(date):
     Returns:
         bool - True if day has dinner set
     """
-    dinner = User.query.filter(Dinner.date == date).first()
+    dinner = Dinner.query.filter(Dinner.date == date).first()
     return True if dinner else False
 
 def set_dinner(dinner, date):
@@ -97,7 +97,6 @@ def todays_dinner():
 
 @ask.intent('SetDinnerSingle')
 def set_dinner_single(dinner=None):
-    print(dinner)
     if dinner:
         if check_dinner(date=date.today()):
             # Dinner set for today
@@ -111,6 +110,36 @@ def set_dinner_single(dinner=None):
     else:
         return question('What do you want for dinner tonight?')
 
+
+@ask.intent('GetDinner', convert={'request_date': 'date'})
+def get_dinner(request_date):
+    """ Get Dinner Intent is how a user gets the set dinner for a specific night
+    
+    The intent will use a default value of date, as sometimes the intent will be fore
+    the current day, and the user will not specify a date.
+
+    Args:
+        date (date): Date the user specifies in the intent. Default today.
+    """
+    if not request_date:
+        # Must be today
+        request_date = date.today()
+    dinner = Dinner.query.filter(Dinner.date == request_date).first()
+    if not dinner:
+        # Think of a way to pass info to next skill
+        # TODO
+        return question('You do not have a dinner set. Would you like to set one now?')
+    else:
+        dinner = dinner.name
+    if request_date == date.today():
+        speech_text = """You have {} set for tonight's dinner. Enjoy!""".format(dinner)
+    elif request_date > date.today():
+        # Future tense
+        speech_text = """You have {} planned for dinner on {}. Enjoy!""".format(dinner, request_date)
+    else:
+        # Past tense
+        speech_text = """You had {}. I hope you enjoyed it!""".format(dinner)
+    return statement(speech_text)
 
 @ask.intent('RateDinner')
 def rate_dinner(dinner):
