@@ -157,6 +157,43 @@ def rate_dinner(rating=None):
         return statement('Dinner has been rated! I\'m glad you enjoyed dinner!')
     return statement('Thanks for rating dinner!')
 
+@ask.intent('GetRating')
+def get_rating(dinner=None, request_date=None):
+    speech_text = ''
+    if request_date:
+        dinner = get_dinner_query(request_date)
+        if not dinner:
+            return statement('You had no dinner set.')
+        if dinner.rating is None:
+            return statement('You have no rating for {}'.format(dinner.name))
+        speech_text = 'You rated {} a {} out of 10'.format(dinner.name, dinner.rating)
+    if dinner:
+        # Get all instances of the dinner
+        user = get_user()
+        dinners = Dinner.query.filter(Dinner.user_id == user.id).filter(Dinner.name == dinner).all()
+        if not dinners:
+            return statement('You have never had {}'.format(dinner))
+        num_times = len(dinners)
+        rating_sum = 0
+        rated_times = 0
+        for meal in dinners:
+            if meal.rating:
+                rated_times += 1
+                rating_sum += meal.rating
+        average_rating = '%.1f' % (rating_sum / rated_times)
+        if rated_times == 0:
+            speech_text = 'You have had {} {} times, but have not rated it before'.format(
+                dinner, num_times)
+        speech_text = 'You have had {} {} times with an average of {} stars'.format(
+            dinner, num_times, average_rating)
+        
+    return statement(speech_text)
+
+@ask.intent('GetTopMeals', convert={'rating': int})
+def get_top_meals(limit=5):
+    pass
+
+
 @ask.intent('AMAZON.HelpIntent')
 def help():
     help_text = """Kitchenly is a skill that allows you to track your dinner plans.
