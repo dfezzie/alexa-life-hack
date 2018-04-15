@@ -1,6 +1,6 @@
 import logging
 
-from datetime import date
+from datetime import date as dt
 
 from flask import Blueprint, render_template
 from flask_ask import Ask, question, statement, session, delegate, confirm_intent, context, request
@@ -18,6 +18,13 @@ log.setLevel(logging.DEBUG)
 
 
 def get_dinner_query(date):
+    """ Gets the dinner for a specified date.
+
+    Args:
+        date (date): Object
+    Returns:
+        Dinner object
+    """
     user = get_user()
     dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
     return dinner
@@ -52,13 +59,23 @@ def set_dinner(name, date):
     """
     # Get the current day dinner
     user = get_user()
-    dinner = Dinner.query.filter(Dinner.date == date).first()
+    dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
     if dinner:
         dinner.name = name
     else:
         dinner = Dinner(name=name, date=date, user_id=user.id)
     db_session.add(dinner)
     db_session.commit()
+
+
+def set_rating(rating):
+    dinner = get_dinner_query(dt.today())
+    if not dinner:
+        return False
+    dinner.rating = rating
+    db_session.add(dinner)
+    db_session.commit()
+    return True
 
 @ask.launch
 def launch():
@@ -77,15 +94,15 @@ def launch():
 def set_dinner_single(dinner=None):
     confirm_status = get_confirmation_status()
     if dinner:
-        if check_dinner(date=date.today()) and confirm_status != 'CONFIRMED':
+        if check_dinner(date=dt.today()) and confirm_status != 'CONFIRMED':
             # Dinner set for today
             speech_text = """You already have {} set for tonight.
             Would you like to change it to {}?""".format(
-                get_dinner_query(date.today()).name,
+                get_dinner_query(dt.today()).name,
                 dinner)
             return confirm_intent(speech_text)
         else:
-            set_dinner(name=dinner, date=date.today())
+            set_dinner(name=dinner, date=dt.today())
             return statement('Dinner has been set! Don\'t forget to rate the dinner after!')
     else:
         return delegate()
@@ -103,16 +120,16 @@ def get_dinner(request_date):
     """
     if not request_date:
         # Must be today
-        request_date = date.today()
+        request_date = dt.today()
     dinner = get_dinner_query(request_date)
     if not dinner:
         # TODO Set one?
         return statement('You do not have a dinner set.')
     dinner = dinner.name
-    if request_date == date.today():
+    if request_date == dt.today():
         # Today
         speech_text = """You have {} set for tonight's dinner. Enjoy!""".format(dinner)
-    elif request_date > date.today():
+    elif request_date > dt.today():
         # Future tense
         speech_text = """You have {} planned for dinner on {}. Enjoy!""".format(dinner, request_date)
     else:
@@ -120,9 +137,25 @@ def get_dinner(request_date):
         speech_text = """You had {}. I hope you enjoyed it!""".format(dinner)
     return statement(speech_text)
 
-@ask.intent('RateDinner')
-def rate_dinner(dinner):
-    pass
+@ask.intent('RateDinner', convert={'rating': int})
+def rate_dinner(rating=None):
+    if not rating:
+        return delegate()
+    if rating not in range(0, 11):
+        # [0, 10]
+        return statement('Rating must be between 0 and 10')
+    success = set_rating(rating)
+    if not success:
+        # Dinner not set
+        return statement('There is no dinner set for tonight.')
+    if rating in range(5,8):
+        # [5, 8)
+        return statement('Dinner has been rated! See you tomorrow!')
+    if rating < 5:
+        return statement('Dinner has been rated! Hopefully dinner will be better tomorrow!')
+    if rating > 7:
+        return statement('Dinner has been rated! I\'m glad you enjoyed dinner!')
+    return statement('Thanks for rating dinner!')
 
 @ask.intent('AMAZON.HelpIntent')
 def help():
