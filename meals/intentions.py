@@ -189,9 +189,22 @@ def get_rating(dinner=None, request_date=None):
         
     return statement(speech_text)
 
-@ask.intent('GetTopMeals', convert={'rating': int})
-def get_top_meals(limit=5):
-    pass
+@ask.intent('GetTopMeals', convert={'limit': int})
+def get_top_meals(limit):
+    if not limit:
+        limit = 5
+    if limit <= 0:
+        return statement('You can only ask for a positive amount of top meals.')
+    if limit > 10:
+        limit = 10
+    user = get_user()
+    dinners = Dinner.query.filter(Dinner.user_id==user.id).order_by(Dinner.rating.desc()).limit(limit)
+    speech_text = 'Your top {} dinners are: '.format(limit)
+    i = 1
+    for dinner in dinners:
+        speech_text += 'Number {}: {} at {} stars.\n'.format(i, dinner.name, dinner.rating)
+        i += 1
+    return statement(speech_text)
 
 
 @ask.intent('AMAZON.HelpIntent')
