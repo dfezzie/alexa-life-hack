@@ -79,12 +79,11 @@ def set_rating(rating):
 
 @ask.launch
 def launch():
+    """ Handles a hard launch of the app. First time users have an account created."""
     if check_user():
-        speech_text = """Welcome back to kitchenly! 
-        Would you like to hear what\'s on the menu for tonight?"""
+        speech_text = """Welcome back to kitchenly!"""
     else:
-        speech_text = """Welcome to kitchenly!
-        Make sure you set a dinner for tonight!"""
+        speech_text = """Welcome to kitchenly! Use kitchenly to set dinners, and keep track of your favorites. Ask for help for more information."""
         create_user()
 
     return question(speech_text)

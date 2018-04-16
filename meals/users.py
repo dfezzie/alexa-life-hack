@@ -10,7 +10,10 @@ def get_user():
     Return the current request user
     """
     amazon_id = get_current_user_id()
-    return User.query.filter(User.amazon_id == amazon_id).first()
+    user = User.query.filter(User.amazon_id == amazon_id).first()
+    if not user:
+        return create_user() 
+    return user
 
 def check_user():
     """
@@ -32,3 +35,4 @@ def create_user():
     user = User(amazon_id=amazon_id)
     db_session.add(user)
     db_session.commit()
+    return user
