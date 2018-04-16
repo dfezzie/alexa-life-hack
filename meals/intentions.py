@@ -156,9 +156,17 @@ def rate_dinner(rating=None):
         return statement('Dinner has been rated! I\'m glad you enjoyed dinner!')
     return statement('Thanks for rating dinner!')
 
-@ask.intent('GetRating')
-def get_rating(dinner=None, request_date=None):
+@ask.intent('GetRating', mapping={'amzn_dinner': 'dinner'})
+def get_rating(amzn_dinner=None, request_date=None):
     speech_text = ''
+    if not request_date and not amzn_dinner:
+        # TODO: Fix
+        dinner = get_dinner_query(dt.today())
+        if not dinner:
+            return statement('You had no dinner set.')
+        if dinner.rating is None:
+            return statement('You have no rating for {}'.format(dinner.name))
+        speech_text = 'You rated {} a {} out of 10'.format(dinner.name, dinner.rating)
     if request_date:
         dinner = get_dinner_query(request_date)
         if not dinner:
@@ -166,10 +174,10 @@ def get_rating(dinner=None, request_date=None):
         if dinner.rating is None:
             return statement('You have no rating for {}'.format(dinner.name))
         speech_text = 'You rated {} a {} out of 10'.format(dinner.name, dinner.rating)
-    if dinner:
+    if amzn_dinner:
         # Get all instances of the dinner
         user = get_user()
-        dinners = Dinner.query.filter(Dinner.user_id == user.id).filter(Dinner.name == dinner).all()
+        dinners = Dinner.query.filter(Dinner.user_id == user.id).filter(Dinner.name == amzn_dinner).all()
         if not dinners:
             return statement('You have never had {}'.format(dinner))
         num_times = len(dinners)
