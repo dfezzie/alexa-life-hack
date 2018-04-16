@@ -15,7 +15,8 @@ ask = Ask(blueprint=blueprint)
 
 log = logging.getLogger('flask_ask')
 log.setLevel(logging.DEBUG)
-
+small_image_url = 'https://images.vexels.com/media/users/3/136264/isolated/preview/485f67bacd0d565a6d8732d3441059d9-kitchen-choppers-round-icon-by-vexels.png'
+large_image_url = 'https://images.vexels.com/media/users/3/136264/isolated/preview/485f67bacd0d565a6d8732d3441059d9-kitchen-choppers-round-icon-by-vexels.png'
 
 def get_dinner_query(date):
     """ Gets the dinner for a specified date.
@@ -134,7 +135,10 @@ def get_dinner(request_date):
     else:
         # Past tense
         speech_text = """You had {}. I hope you enjoyed it!""".format(dinner)
-    return statement(speech_text)
+    return statement(speech_text).standard_card(title='Kitchenly Helper',
+                       text='{}'.format(speech_text),
+                       small_image_url=small_image_url,
+                       large_image_url=large_image_url)
 
 @ask.intent('RateDinner', convert={'rating': int})
 def rate_dinner(rating=None):
