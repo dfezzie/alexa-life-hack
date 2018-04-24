@@ -26,14 +26,24 @@ def get_dinner_query(date):
     Returns:
         Dinner object
     """
+    log.debug('Getting Dinner with Date: ' + str(date))
     user = get_user()
     dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
     return dinner
 
 def get_confirmation_status():
+    """
+    Helper Function to get the confirmation status for a slot confirmation
+    """
+    log.debug('Getting Confirmation Status')
     return request['intent']['confirmationStatus']
 
 def get_dialog_state():
+    """
+    Helper function to get the state of dialog.
+    TODO: 
+    Add Possible States here
+    """
     return session['dialogState']
 
 
@@ -46,7 +56,10 @@ def check_dinner(date):
     Returns:
         bool - True if day has dinner set
     """
-    dinner = Dinner.query.filter(Dinner.date == date).first()
+    log.debug('Checking dinner with date:' + str(date))
+    user = get_user()
+    dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
+    print(dinner)
     return True if dinner else False
 
 def set_dinner(name, date):
@@ -59,17 +72,21 @@ def set_dinner(name, date):
         date (date): Date to set the dinner for.
     """
     # Get the current day dinner
+    log.debug('Setting {} as dinner for day {}'.format(name, date))
     user = get_user()
     dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
     if dinner:
+        log.debug('Overriding dinner: ' + dinner.name)
         dinner.name = name
     else:
+        log.debug('Creating new dinner')
         dinner = Dinner(name=name, date=date, user_id=user.id)
     db_session.add(dinner)
     db_session.commit()
 
 
 def set_rating(rating):
+    log.debug('Setting rating for today.')
     dinner = get_dinner_query(dt.today())
     if not dinner:
         return False
@@ -82,9 +99,10 @@ def set_rating(rating):
 def launch():
     """ Handles a hard launch of the app. First time users have an account created."""
     if check_user():
-        speech_text = """Welcome back to kitchenly!"""
+        speech_text = """Welcome back to Dinner Manager! What would you like to do?"""
     else:
-        speech_text = """Welcome to kitchenly! Use kitchenly to set dinners, and keep track of your favorites. Ask for help for more information."""
+        speech_text = """Welcome to kitchenly! Use kitchenly to set dinners, and keep track 
+        of your favorites. Ask for help for more information. What would you like to do today?"""
         create_user()
 
     return question(speech_text)
@@ -93,8 +111,13 @@ def launch():
 @ask.intent('SetDinnerSingle')
 def set_dinner_single(dinner=None):
     confirm_status = get_confirmation_status()
+    if confirm_status == 'DENIED':
+        return statement('Okay.')
+    log.debug('Set Dinner Single Confirmation Status is: ' + confirm_status)
     if dinner:
+        log.debug('Set Dinner Single Dinner Specified')
         if check_dinner(date=dt.today()) and confirm_status != 'CONFIRMED':
+            log.debug('Set Dinner Single Dinner Exists for Today')
             # Dinner set for today
             speech_text = """You already have {} set for tonight.
             Would you like to change it to {}?""".format(
@@ -102,9 +125,11 @@ def set_dinner_single(dinner=None):
                 dinner)
             return confirm_intent(speech_text)
         else:
+            log.debug('Set Dinner Single Setting Dinner to: ' + dinner)
             set_dinner(name=dinner, date=dt.today())
             return statement('Dinner has been set! Don\'t forget to rate the dinner after!')
     else:
+        log.debug('Set Dinner Single Delegate')
         return delegate()
 
 
@@ -123,7 +148,6 @@ def get_dinner(request_date):
         request_date = dt.today()
     dinner = get_dinner_query(request_date)
     if not dinner:
-        # TODO Set one?
         return statement('You do not have a dinner set.')
     dinner = dinner.name
     if request_date == dt.today():
@@ -157,7 +181,7 @@ def rate_dinner(rating=None):
     if rating < 5:
         return statement('Dinner has been rated! Hopefully dinner will be better tomorrow!')
     if rating > 7:
-        return statement('Dinner has been rated! I\'m glad you enjoyed dinner!')
+        return statement('Dinner has been rated! I\'m glad you enjoyed it!')
     return statement('Thanks for rating dinner!')
 
 @ask.intent('GetRating', mapping={'amzn_dinner': 'dinner'})
