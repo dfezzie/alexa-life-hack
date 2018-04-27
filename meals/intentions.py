@@ -5,7 +5,8 @@ import operator
 from datetime import date as dt
 
 from flask import Blueprint, render_template
-from flask_ask import Ask, question, statement, session, delegate, confirm_intent, context, request
+from flask_ask import (Ask, question, statement, session, delegate, confirm_intent, context,
+    request, convert_errors)
 
 from .database import db_session
 from .models import Dinner
@@ -47,11 +48,13 @@ def launch():
         of your favorites. Ask for help for more information. What would you like to do today?"""
         create_user()
 
-    return question(speech_text)
-
+    return question(speech_text).reprompt('I didn\'t get that. What would you like to do?')
 
 @ask.intent('SetDinnerSingle')
 def set_dinner_single(dinner=None):
+    log.debug('Entering Set Dinner Single')
+    if convert_errors:
+        return question('I had trouble understanding you. Can you ask again?')
     confirm_status = get_confirmation_status()
     if confirm_status == 'DENIED':
         return statement('Okay.')
@@ -85,6 +88,8 @@ def get_dinner_intent(request_date):
     Args:
         date (date): Date the user specifies in the intent. Default today.
     """
+    if convert_errors:
+        return question('I had trouble understanding you. Can you ask again?')
     if not request_date:
         # Must be today
         request_date = dt.today()
@@ -108,6 +113,8 @@ def get_dinner_intent(request_date):
 
 @ask.intent('RateDinner', convert={'rating': int})
 def rate_dinner_intent(rating=None):
+    if convert_errors:
+        return question('I had trouble understanding you. Can you ask again?')
     if not rating:
         return delegate()
     if rating not in range(0, 11):
@@ -128,6 +135,8 @@ def rate_dinner_intent(rating=None):
 
 @ask.intent('GetRating', mapping={'amzn_dinner': 'dinner'})
 def get_rating_intent(amzn_dinner=None, request_date=None):
+    if convert_errors:
+        return question('I had trouble understanding you. Can you ask again?')
     log.debug('Getting Rating for {} dinner or {} date'.format(amzn_dinner, request_date))
     speech_text = ''
     if not request_date and not amzn_dinner:
@@ -145,6 +154,8 @@ def get_rating_intent(amzn_dinner=None, request_date=None):
 
 @ask.intent('GetTopMeals', convert={'limit': int})
 def get_top_meals(limit):
+    if convert_errors:
+        return question('I had trouble understanding you. Can you ask again?')
     if not limit:
         limit = 5
     if limit <= 0:
@@ -199,4 +210,8 @@ def cancel():
 
 @ask.session_ended
 def session_ended():
-    return "{}", 200
+    return "Goodbye", 200
+
+@ask.intent('AMAZON.NoIntent')
+def no_intent():
+    return question('I do not understand. How can I help today?')
