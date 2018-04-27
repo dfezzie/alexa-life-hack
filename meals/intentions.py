@@ -99,9 +99,9 @@ def set_rating(rating):
 def launch():
     """ Handles a hard launch of the app. First time users have an account created."""
     if check_user():
-        speech_text = """Welcome back to Dinner Manager! What would you like to do?"""
+        speech_text = """Welcome back to Kitchenly Dinner Manager! What would you like to do?"""
     else:
-        speech_text = """Welcome to kitchenly! Use kitchenly to set dinners, and keep track 
+        speech_text = """Welcome to Kitchenly Dinner Manager! Use Kitchenly to set dinners, and keep track 
         of your favorites. Ask for help for more information. What would you like to do today?"""
         create_user()
 
@@ -188,7 +188,7 @@ def rate_dinner(rating=None):
 def get_rating(amzn_dinner=None, request_date=None):
     speech_text = ''
     if not request_date and not amzn_dinner:
-        # TODO: Fix
+        # No args set.
         dinner = get_dinner_query(dt.today())
         if not dinner:
             return statement('You had no dinner set.')
@@ -196,18 +196,19 @@ def get_rating(amzn_dinner=None, request_date=None):
             return statement('You have no rating for {}'.format(dinner.name))
         speech_text = 'You rated {} a {} out of 10'.format(dinner.name, dinner.rating)
     if request_date:
+        # Request Dinner with a date
         dinner = get_dinner_query(request_date)
         if not dinner:
             return statement('You had no dinner set.')
         if dinner.rating is None:
-            return statement('You have no rating for {}'.format(dinner.name))
-        speech_text = 'You rated {} a {} out of 10'.format(dinner.name, dinner.rating)
+            return statement('You have no rating for {}'.format(amzn_dinner))
+        speech_text = 'You rated {} a {} out of 10'.format(amzn_dinner, dinner.rating)
     if amzn_dinner:
         # Get all instances of the dinner
         user = get_user()
         dinners = Dinner.query.filter(Dinner.user_id == user.id).filter(Dinner.name == amzn_dinner).all()
         if not dinners:
-            return statement('You have never had {}'.format(dinner))
+            return statement('You have never had {}'.format(amzn_dinner))
         num_times = len(dinners)
         rating_sum = 0
         rated_times = 0
@@ -244,12 +245,12 @@ def get_top_meals(limit):
 
 @ask.intent('AMAZON.HelpIntent')
 def help():
-    help_text = """Kitchenly is a skill that allows you to track your dinner plans.
+    help_text = """Kitchenly Dinner Manager is a skill that allows you to track your dinner plans.
     You can set dinner by saying 'Today, I will be having the chicken soulvaki'.
 
-    You can hear what you are having for dinner by asking, 'Kitchenly, what am I having for dinner?'
+    You can hear what you are having for dinner by asking, ', what am I having for dinner?'
 
-    You can rate your dinner by saying, 'Kitchenly, rate tonight's dinner as a 4.'
+    You can rate your dinner by saying, 'Kitchenly Dinner Manager, rate tonight's dinner as a 4.'
     """
     return statement(help_text)
 
