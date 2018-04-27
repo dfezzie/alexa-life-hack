@@ -8,7 +8,8 @@ from flask_ask import Ask, question, statement, session, delegate, confirm_inten
 from .database import db_session
 from .models import Dinner
 from .users import get_user, check_user, create_user
-
+from .dinners import get_dinner_date, check_dinner, set_dinner
+from .ratings import set_rating, get_rating, average_rating
 
 blueprint = Blueprint('blueprint_api', __name__, url_prefix="/")
 ask = Ask(blueprint=blueprint)
@@ -17,19 +18,6 @@ log = logging.getLogger('flask_ask')
 log.setLevel(logging.DEBUG)
 small_image_url = 'https://images.vexels.com/media/users/3/136264/isolated/preview/485f67bacd0d565a6d8732d3441059d9-kitchen-choppers-round-icon-by-vexels.png'
 large_image_url = 'https://images.vexels.com/media/users/3/136264/isolated/preview/485f67bacd0d565a6d8732d3441059d9-kitchen-choppers-round-icon-by-vexels.png'
-
-def get_dinner_query(date):
-    """ Gets the dinner for a specified date.
-
-    Args:
-        date (date): Object
-    Returns:
-        Dinner object
-    """
-    log.debug('Getting Dinner with Date: ' + str(date))
-    user = get_user()
-    dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
-    return dinner
 
 def get_confirmation_status():
     """
@@ -46,54 +34,6 @@ def get_dialog_state():
     """
     return session['dialogState']
 
-
-def check_dinner(date):
-    """ Check if the date has a dinner set.
-
-    Args:
-        date (date): Date to check for dinner
-
-    Returns:
-        bool - True if day has dinner set
-    """
-    log.debug('Checking dinner with date:' + str(date))
-    user = get_user()
-    dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
-    print(dinner)
-    return True if dinner else False
-
-def set_dinner(name, date):
-    """ Sets the dinner for a certain date
-
-    Overrides any existing dinner for that day.
-
-    Args:
-        dinner(string): Name of the dinner.
-        date (date): Date to set the dinner for.
-    """
-    # Get the current day dinner
-    log.debug('Setting {} as dinner for day {}'.format(name, date))
-    user = get_user()
-    dinner = Dinner.query.filter(Dinner.date == date).filter(Dinner.user_id == user.id).first()
-    if dinner:
-        log.debug('Overriding dinner: ' + dinner.name)
-        dinner.name = name
-    else:
-        log.debug('Creating new dinner')
-        dinner = Dinner(name=name, date=date, user_id=user.id)
-    db_session.add(dinner)
-    db_session.commit()
-
-
-def set_rating(rating):
-    log.debug('Setting rating for today.')
-    dinner = get_dinner_query(dt.today())
-    if not dinner:
-        return False
-    dinner.rating = rating
-    db_session.add(dinner)
-    db_session.commit()
-    return True
 
 @ask.launch
 def launch():
@@ -121,7 +61,7 @@ def set_dinner_single(dinner=None):
             # Dinner set for today
             speech_text = """You already have {} set for tonight.
             Would you like to change it to {}?""".format(
-                get_dinner_query(dt.today()).name,
+                get_dinner_date(dt.today()).name,
                 dinner)
             return confirm_intent(speech_text)
         else:
@@ -134,7 +74,7 @@ def set_dinner_single(dinner=None):
 
 
 @ask.intent('GetDinner', convert={'request_date': 'date'})
-def get_dinner(request_date):
+def get_dinner_intent(request_date):
     """ Get Dinner Intent is how a user gets the set dinner for a specific night
     
     The intent will use a default value of date, as sometimes the intent will be fore
@@ -146,7 +86,7 @@ def get_dinner(request_date):
     if not request_date:
         # Must be today
         request_date = dt.today()
-    dinner = get_dinner_query(request_date)
+    dinner = get_dinner_date(request_date)
     if not dinner:
         return statement('You do not have a dinner set.')
     dinner = dinner.name
@@ -165,7 +105,7 @@ def get_dinner(request_date):
                        large_image_url=large_image_url)
 
 @ask.intent('RateDinner', convert={'rating': int})
-def rate_dinner(rating=None):
+def rate_dinner_intent(rating=None):
     if not rating:
         return delegate()
     if rating not in range(0, 11):
@@ -185,44 +125,20 @@ def rate_dinner(rating=None):
     return statement('Thanks for rating dinner!')
 
 @ask.intent('GetRating', mapping={'amzn_dinner': 'dinner'})
-def get_rating(amzn_dinner=None, request_date=None):
+def get_rating_intent(amzn_dinner=None, request_date=None):
+    log.debug('Getting Rating for {} dinner or {} date'.format(amzn_dinner, request_date))
     speech_text = ''
     if not request_date and not amzn_dinner:
-        # No args set.
-        dinner = get_dinner_query(dt.today())
-        if not dinner:
-            return statement('You had no dinner set.')
-        if dinner.rating is None:
-            return statement('You have no rating for {}'.format(dinner.name))
-        speech_text = 'You rated {} a {} out of 10'.format(dinner.name, dinner.rating)
+        # Get Dinner with today's date
+        log.debug('No dinner or request date specified.')
+        speech_text = get_rating(dt.today())
     if request_date:
         # Request Dinner with a date
-        dinner = get_dinner_query(request_date)
-        if not dinner:
-            return statement('You had no dinner set.')
-        if dinner.rating is None:
-            return statement('You have no rating for {}'.format(amzn_dinner))
-        speech_text = 'You rated {} a {} out of 10'.format(amzn_dinner, dinner.rating)
+        log.debug('Getting dinner with date: ' + request_date)
+        speech_text = get_rating(request_date)
     if amzn_dinner:
-        # Get all instances of the dinner
-        user = get_user()
-        dinners = Dinner.query.filter(Dinner.user_id == user.id).filter(Dinner.name == amzn_dinner).all()
-        if not dinners:
-            return statement('You have never had {}'.format(amzn_dinner))
-        num_times = len(dinners)
-        rating_sum = 0
-        rated_times = 0
-        for meal in dinners:
-            if meal.rating:
-                rated_times += 1
-                rating_sum += meal.rating
-        average_rating = '%.1f' % (rating_sum / rated_times)
-        if rated_times == 0:
-            speech_text = 'You have had {} {} times, but have not rated it before'.format(
-                dinner, num_times)
-        speech_text = 'You have had {} {} times with an average of {} stars'.format(
-            dinner, num_times, average_rating)
-        
+        # Calculate average rating for specified dinner
+        speech_text = average_rating(amzn_dinner)
     return statement(speech_text)
 
 @ask.intent('GetTopMeals', convert={'limit': int})
@@ -246,13 +162,18 @@ def get_top_meals(limit):
 @ask.intent('AMAZON.HelpIntent')
 def help():
     help_text = """Kitchenly Dinner Manager is a skill that allows you to track your dinner plans.
-    You can set dinner by saying 'Today, I will be having the chicken soulvaki'.
+    
+    You can set dinner by saying: 
+    
+    'Alexa, tell Dinner manager, I will be having chicken soulvaki'.
 
-    You can hear what you are having for dinner by asking, ', what am I having for dinner?'
+    You can hear what you are having for dinner by asking, dinner manager, what am I having for dinner?'
 
     You can rate your dinner by saying, 'Kitchenly Dinner Manager, rate tonight's dinner as a 4.'
+
+    What would you like to do today?
     """
-    return statement(help_text)
+    return question(help_text)
 
 @ask.intent('AMAZON.CancelIntent')
 def cancel():
