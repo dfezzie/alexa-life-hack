@@ -1,4 +1,6 @@
 import logging
+from collections import defaultdict
+import operator
 
 from datetime import date as dt
 
@@ -150,11 +152,26 @@ def get_top_meals(limit):
     if limit > 10:
         limit = 10
     user = get_user()
-    dinners = Dinner.query.filter(Dinner.user_id==user.id).order_by(Dinner.rating.desc()).limit(limit)
+    dinners = Dinner.query.filter(Dinner.user_id==user.id).filter(Dinner.rating != None)
+    if not dinners:
+        speech_text = 'You have never rated a dinner before!'
+    dinner_count = defaultdict(int)
+    total_ratings = defaultdict(int)
+    for dinner in dinners:
+        dinner_count[dinner.name] += 1
+        total_ratings[dinner.name] += dinner.rating
+    
+    avg = {}
+    for dinner in total_ratings.keys():
+        avg[dinner] = total_ratings[dinner]/ dinner_count[dinner]
+    
+    # Sort dinner by average and limit it
+    sorted_dinners = sorted(avg.items(), key=operator.itemgetter(1), reverse=True)[:limit]
+
     speech_text = 'Your top {} dinners are: '.format(limit)
     i = 1
-    for dinner in dinners:
-        speech_text += 'Number {}: {} at {} stars.\n'.format(i, dinner.name, dinner.rating)
+    for dinner in sorted_dinners:
+        speech_text += 'Number %s: %s at %.1f stars.\n' % (i, dinner[0], dinner[1])
         i += 1
     return statement(speech_text)
 
