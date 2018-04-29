@@ -40,10 +40,13 @@ def get_dialog_state():
 
 @ask.launch
 def launch():
+    log.debug('Launch')
     """ Handles a hard launch of the app. First time users have an account created."""
     if check_user():
+        log.debug('User Found!')
         speech_text = """Welcome back to Kitchenly Dinner Manager! What would you like to do?"""
     else:
+        log.debug('User Not found. Creating.')
         speech_text = """Welcome to Kitchenly Dinner Manager! Use Kitchenly to set dinners, and keep track 
         of your favorites. Ask for help for more information. What would you like to do today?"""
         create_user()
@@ -88,6 +91,7 @@ def get_dinner_intent(request_date):
     Args:
         date (date): Date the user specifies in the intent. Default today.
     """
+    log.debug('GetDinner Intent')
     if convert_errors:
         return question('I had trouble understanding you. Can you ask again?')
     if not request_date:
@@ -113,6 +117,7 @@ def get_dinner_intent(request_date):
 
 @ask.intent('RateDinner', convert={'rating': int})
 def rate_dinner_intent(rating=None):
+    log.debug('RateDinner Intent')
     if convert_errors:
         return question('I had trouble understanding you. Can you ask again?')
     if not rating:
@@ -135,6 +140,7 @@ def rate_dinner_intent(rating=None):
 
 @ask.intent('GetRating', mapping={'amzn_dinner': 'dinner'})
 def get_rating_intent(amzn_dinner=None, request_date=None):
+    log.debug('GetRating Intent')
     if convert_errors:
         return question('I had trouble understanding you. Can you ask again?')
     log.debug('Getting Rating for {} dinner or {} date'.format(amzn_dinner, request_date))
@@ -154,6 +160,7 @@ def get_rating_intent(amzn_dinner=None, request_date=None):
 
 @ask.intent('GetTopMeals', convert={'limit': int})
 def get_top_meals(limit):
+    log.debug('GetTopMeals Intent')
     if convert_errors:
         return question('I had trouble understanding you. Can you ask again?')
     if not limit:
@@ -163,9 +170,8 @@ def get_top_meals(limit):
     if limit > 10:
         limit = 10
     user = get_user()
-    dinners = Dinner.query.filter(Dinner.user_id==user.id).filter(Dinner.rating != None)
-    if not dinners:
-        speech_text = 'You have never rated a dinner before!'
+    dinners = Dinner.query.filter(Dinner.user_id==user.id).filter(Dinner.rating != None).all()
+
     dinner_count = defaultdict(int)
     total_ratings = defaultdict(int)
     for dinner in dinners:
@@ -184,11 +190,17 @@ def get_top_meals(limit):
     for dinner in sorted_dinners:
         speech_text += 'Number %s: %s at %.1f stars.\n' % (i, dinner[0], dinner[1])
         i += 1
+    print(dinners)
+
+    if not dinners:
+        speech_text = 'You have never rated a dinner before!'
     return statement(speech_text)
 
 
 @ask.intent('AMAZON.HelpIntent')
 def help():
+    log.debug('HelpIntent Intent')
+
     help_text = """Kitchenly Dinner Manager is a skill that allows you to track your dinner plans.
     
     You can set dinner by saying: 
@@ -197,7 +209,7 @@ def help():
 
     You can hear what you are having for dinner by asking, dinner manager, what am I having for dinner?'
 
-    You can rate your dinner by saying, 'Kitchenly Dinner Manager, rate tonight's dinner as a 4.'
+    You can rate your dinner by saying, 'Dinner Manager, rate tonight's dinner as a 4.'
 
     What would you like to do today?
     """
@@ -205,13 +217,16 @@ def help():
 
 @ask.intent('AMAZON.CancelIntent')
 def cancel():
+    log.debug('Cancel Intent')
     return statement('Goodbye')
 
 
 @ask.session_ended
 def session_ended():
-    return "Goodbye", 200
+    log.debug('Session Ended Intent')
+    return "", 200
 
-@ask.intent('AMAZON.NoIntent')
-def no_intent():
-    return question('I do not understand. How can I help today?')
+@ask.intent('AMAZON.StopIntent')
+def stop_intent():
+    log.debug('Stop intent')
+    return statement('Goodbye')

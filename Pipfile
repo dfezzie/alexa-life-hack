@@ -4,6 +4,7 @@ verify_ssl = true
 
 [dev-packages]
 pylint = "*"
+"pep8" = "*"
 
 [packages]
 Flask-Ask = "*"
