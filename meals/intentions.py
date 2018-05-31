@@ -120,7 +120,7 @@ def rate_dinner_intent(rating=None):
     log.debug('RateDinner Intent')
     if convert_errors:
         return question('I had trouble understanding you. Can you ask again?')
-    if not rating:
+    if rating is None:
         return delegate()
     if rating not in range(0, 11):
         # [0, 10]
@@ -184,7 +184,8 @@ def get_top_meals(limit):
     
     # Sort dinner by average and limit it
     sorted_dinners = sorted(avg.items(), key=operator.itemgetter(1), reverse=True)[:limit]
-
+    if limit > len(sorted_dinners):
+        limit = len(sorted_dinners)
     speech_text = 'Your top {} dinners are: '.format(limit)
     i = 1
     for dinner in sorted_dinners:

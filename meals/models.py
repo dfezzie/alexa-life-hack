@@ -54,6 +54,6 @@ class Dinner(Base):
         """
         Validator to ensure rating is (0, 5] or None
         """
-        assert value is None or value <= 10 and value > 0
+        assert value is None or value <= 10 and value >= 0
         return value
     
